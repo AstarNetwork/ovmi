@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "cli",
+    "lib",
+]
+
+[profile.release]
+# Plasm runtime requires unwinding.
+panic = "unwind"

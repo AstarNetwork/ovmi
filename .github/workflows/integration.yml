@@ -1,0 +1,55 @@
+on: [push]
+
+name: Integration
+
+jobs:
+  native:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, macOS-latest, windows-latest]
+
+    env:
+      EXE_EXT: ${{ contains(matrix.os, 'windows') && '.exe' || '' }}
+
+    steps:
+    - name: Install LLVM (windows only)
+      if: runner.os == 'Windows'
+      run: choco install llvm
+
+    - uses: hecrj/setup-rust-action@v1
+      with:
+        rust-version: 'nightly-2021-03-23'
+        targets: 'wasm32-unknown-unknown'
+
+    - name: Checkout the source code
+      uses: actions/checkout@master
+      with:
+        submodules: true
+
+    - name: Check targets are installed correctly
+      run: rustup target list --installed
+
+    - name: Run all tests
+      run: cargo test --all
+
+    - name: Build optimized binary
+      run: cargo build --release --locked
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@master
+      with:
+        name: ${{ matrix.os }}
+        path: target/release/plasm${{ env.EXE_EXT }}
+
+  nix:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout the source code
+      uses: actions/checkout@v2
+      with:
+        submodules: true
+    - uses: cachix/install-nix-action@v12
+      with:
+        nix_path: nixpkgs=channel:nixos-20.09
+    - run: nix-shell third-party/nix/shell.nix --run "cargo build --release"
